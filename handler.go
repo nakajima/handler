@@ -19,7 +19,8 @@ const (
 )
 
 type Handler struct {
-	Schema *graphql.Schema
+	Schema       *graphql.Schema
+	SchemaFinder func(w http.ResponseWriter, r *http.Request) *graphql.Schema
 
 	pretty bool
 }
@@ -119,6 +120,10 @@ func (h *Handler) ContextHandler(ctx context.Context, w http.ResponseWriter, r *
 	// get query
 	opts := NewRequestOptions(r)
 
+	if h.SchemaFinder != nil {
+		h.Schema = h.SchemaFinder(w, r)
+	}
+
 	// execute graphql query
 	params := graphql.Params{
 		Schema:         *h.Schema,
@@ -151,8 +156,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type Config struct {
-	Schema *graphql.Schema
-	Pretty bool
+	Schema       *graphql.Schema
+	SchemaFinder func(w http.ResponseWriter, r *http.Request) *graphql.Schema
+	Pretty       bool
 }
 
 func NewConfig() *Config {
@@ -166,12 +172,13 @@ func New(p *Config) *Handler {
 	if p == nil {
 		p = NewConfig()
 	}
-	if p.Schema == nil {
+	if p.Schema == nil && p.SchemaFinder == nil {
 		panic("undefined GraphQL schema")
 	}
 
 	return &Handler{
-		Schema: p.Schema,
-		pretty: p.Pretty,
+		Schema:       p.Schema,
+		SchemaFinder: p.SchemaFinder,
+		pretty:       p.Pretty,
 	}
 }
